@@ -1,0 +1,22 @@
+# Git
+.git
+.gitignore
+
+# Build outputs
+**/bin/
+**/obj/
+
+# Node modules / build artifacts
+**/node_modules/
+**/dist/
+
+# IDE
+.idea/
+.vscode/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Local databases
+src/TaskyV2.Api/data/

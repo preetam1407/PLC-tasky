@@ -105,6 +105,12 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 app.Use(async (ctx, next) =>
 {
     if (ctx.Request.Headers.TryGetValue("Authorization", out var auth))

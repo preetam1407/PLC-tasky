@@ -24,8 +24,8 @@ builder.Services.AddCors(o =>
     o.AddPolicy("Frontend", policy => policy
         .WithOrigins("http://localhost:5173",
                     "http://localhost:5174",
-                    "https://<tasky-v1-vercel-domain>",
-                    "https://<tasky-v2-vercel-domain>"
+                    "https://basic-task-manager-flame.vercel.app",
+                    "https://mini-project-manager-eta.vercel.app"
 )
 
         .AllowAnyHeader()

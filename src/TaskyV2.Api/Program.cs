@@ -61,7 +61,7 @@ builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 
 builder.Services.AddCors(o => o.AddPolicy("Frontend", p =>
-    p.WithOrigins("http://localhost:5173","http://localhost:5174")
+    p.WithOrigins("http://localhost:5173","http://localhost:5174","https://mini-project-manager-457iyp27s-preetams-projects-119047c4.vercel.app/")
      .AllowAnyHeader().AllowAnyMethod()));
 
 builder.Services.AddProblemDetails();

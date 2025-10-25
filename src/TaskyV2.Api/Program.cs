@@ -61,7 +61,7 @@ builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 
 builder.Services.AddCors(o => o.AddPolicy("Frontend", p =>
-    p.WithOrigins("http://localhost:5173","http://localhost:3000")
+    p.WithOrigins("http://localhost:5173","http://localhost:5174")
      .AllowAnyHeader().AllowAnyMethod()));
 
 builder.Services.AddProblemDetails();
@@ -135,8 +135,33 @@ auth.MapPost("/register", async (RegisterRequest req, IValidator<RegisterRequest
 {
     var vr = await v.ValidateAsync(req, ct);
     if (!vr.IsValid) return Results.ValidationProblem(vr.ToDictionary());
-    await svc.RegisterAsync(req, ct);
-    return Results.NoContent();
+    try
+    {
+        await svc.RegisterAsync(req, ct);
+        return Results.NoContent();
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Problem(
+            statusCode: 409,
+            title: "Email already registered",
+            detail: ex.Message);
+    }
+    catch (DbUpdateException dbEx)
+    {
+        var message = dbEx.InnerException?.Message ?? dbEx.Message;
+        if (!string.IsNullOrWhiteSpace(message) && message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.Problem(
+                statusCode: 409,
+                title: "Email already registered",
+                detail: "Please use a different email address.");
+        }
+        return Results.Problem(
+            statusCode: 500,
+            title: "Unable to register user",
+            detail: message);
+    }
 });
 
 auth.MapPost("/login", async (LoginRequest req, IValidator<LoginRequest> v, AuthService svc, CancellationToken ct) =>
@@ -163,6 +188,12 @@ projects.MapGet("/", async (ClaimsPrincipal u, ProjectService svc, CancellationT
 {
     var userId = GetUserId(u);
     return Results.Ok(await svc.GetAllAsync(userId, ct));
+});
+
+projects.MapGet("/{projectId:guid}", async (ClaimsPrincipal u, Guid projectId, ProjectService svc, CancellationToken ct) =>
+{
+    var res = await svc.GetAsync(GetUserId(u), projectId, ct);
+    return res is null ? Results.NotFound() : Results.Ok(res);
 });
 
 projects.MapPost("/", async (ClaimsPrincipal u, ProjectCreateRequest req, IValidator<ProjectCreateRequest> v, ProjectService svc, CancellationToken ct) =>
@@ -219,6 +250,35 @@ projects.MapPatch("/{projectId:guid}/tasks/{taskId:guid}/toggle", async (ClaimsP
 projects.MapDelete("/{projectId:guid}/tasks/{taskId:guid}", async (ClaimsPrincipal u, Guid projectId, Guid taskId, TaskService svc, CancellationToken ct) =>
 {
     var ok = await svc.DeleteAsync(GetUserId(u), projectId, taskId, ct);
+    return ok ? Results.NoContent() : Results.NotFound();
+});
+
+// ====== TASKS (flat routes) ======
+var tasks = app.MapGroup("/api/v1/tasks").WithTags("Tasks").RequireAuthorization();
+
+tasks.MapGet("/{taskId:guid}", async (ClaimsPrincipal u, Guid taskId, TaskService svc, CancellationToken ct) =>
+{
+    var res = await svc.GetAsync(GetUserId(u), taskId, ct);
+    return res is null ? Results.NotFound() : Results.Ok(res);
+});
+
+tasks.MapPut("/{taskId:guid}", async (ClaimsPrincipal u, Guid taskId, TaskUpdateRequest req, IValidator<TaskUpdateRequest> v, TaskService svc, CancellationToken ct) =>
+{
+    var vr = await v.ValidateAsync(req, ct);
+    if (!vr.IsValid) return Results.ValidationProblem(vr.ToDictionary());
+    var ok = await svc.UpdateAsync(GetUserId(u), taskId, req, ct);
+    return ok ? Results.NoContent() : Results.NotFound();
+});
+
+tasks.MapPatch("/{taskId:guid}/toggle", async (ClaimsPrincipal u, Guid taskId, TaskService svc, CancellationToken ct) =>
+{
+    var ok = await svc.ToggleAsync(GetUserId(u), taskId, ct);
+    return ok ? Results.NoContent() : Results.NotFound();
+});
+
+tasks.MapDelete("/{taskId:guid}", async (ClaimsPrincipal u, Guid taskId, TaskService svc, CancellationToken ct) =>
+{
+    var ok = await svc.DeleteAsync(GetUserId(u), taskId, ct);
     return ok ? Results.NoContent() : Results.NotFound();
 });
 

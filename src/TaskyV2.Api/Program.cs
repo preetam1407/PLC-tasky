@@ -60,10 +60,18 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 
-builder.Services.AddCors(o => o.AddPolicy("Frontend", p =>
-    p.WithOrigins("http://localhost:5173","http://localhost:5174","https://mini-project-manager-457iyp27s-preetams-projects-119047c4.vercel.app/")
-     .AllowAnyHeader().AllowAnyMethod()));
+ var allowedOrigins = builder.Configuration.GetValue<string>("AllowedOrigins")
+     ?.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+     ?? new[]
+     {
+         "http://localhost:5174",
+         "http://localhost:3000"
+     };
 
+ builder.Services.AddCors(o => o.AddPolicy("Frontend", p =>
+     p.WithOrigins(allowedOrigins)
+      .AllowAnyHeader()
+      .AllowAnyMethod()));
 builder.Services.AddProblemDetails();
 
 builder.Services.AddScoped<ITokenService, TokenService>();

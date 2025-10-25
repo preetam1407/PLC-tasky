@@ -18,16 +18,19 @@ builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskRequestValidator>
 builder.Services.AddSingleton<ITaskRepository, InMemoryTaskRepository>();
 builder.Services.AddSingleton<TaskService>();
 
-//Cors
+// Cors
+var corsOrigins = builder.Configuration.GetValue<string>("AllowedOrigins")
+    ?.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    ?? new[]
+    {
+        "http://localhost:5173",
+        "http://localhost:5174"
+    };
+
 builder.Services.AddCors(o =>
 {
     o.AddPolicy("Frontend", policy => policy
-        .WithOrigins("http://localhost:5173",
-                    "http://localhost:5174",
-                    "https://basic-task-manager-flame.vercel.app",
-                    "https://mini-project-manager-eta.vercel.app"
-)
-
+        .WithOrigins(corsOrigins)
         .AllowAnyHeader()
         .AllowAnyMethod());
 });

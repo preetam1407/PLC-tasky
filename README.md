@@ -3,10 +3,10 @@ PLC October 2025 home assignments. The repository contains two independent solut
 
 # Deployment URLs
 
-# Assignment 1
+### Assignment 1
 https://basic-task-manager-flame.vercel.app/
 
-# Assignment 2
+### Assignment 2
 https://mini-project-manager-eta.vercel.app/
 
    

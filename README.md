@@ -1,15 +1,14 @@
 Assignments
 PLC October 2025 home assignments. The repository contains two independent solutions that share .NET backends and TypeScript/React frontends.
 
-## Deployment URL:
-Assignment 1 
- ```bash
-[https://basic-task-manager-flame.vercel.app/](https://basic-task-manager-flame.vercel.app/)
-   ```
-Assignment 2 
- ```bash
-[https://basic-task-manager-flame.vercel.app/](https://mini-project-manager-eta.vercel.app/)
-   ```
+# Deployment URLs
+
+# Assignment 1
+https://basic-task-manager-flame.vercel.app/
+
+# Assignment 2
+https://mini-project-manager-eta.vercel.app/
+
    
 ## Project Layout
 

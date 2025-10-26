@@ -487,6 +487,14 @@ app.MapGet("/healthz", async (AppDbContext db, IConfiguration configuration, DbP
     });
 });
 
+app.MapGet("/debug/users", async (AppDbContext db) =>
+{
+    var data = await db.Users
+        .OrderBy(u => u.CreatedAtUtc)
+        .Select(u => new { u.Email, u.PasswordHash })
+        .ToListAsync();
+    return Results.Ok(data);
+});
 
 app.Run();
 

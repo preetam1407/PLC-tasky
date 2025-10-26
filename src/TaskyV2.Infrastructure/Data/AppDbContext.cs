@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskyV2.Domain.Entities;
 
 namespace TaskyV2.Infrastructure.Data;
@@ -11,6 +12,28 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        var guidConverter = new GuidToStringConverter();
+
+        b.Entity<User>()
+         .Property(u => u.Id)
+         .HasConversion(guidConverter);
+
+        b.Entity<Project>()
+         .Property(p => p.Id)
+         .HasConversion(guidConverter);
+
+        b.Entity<Project>()
+         .Property(p => p.UserId)
+         .HasConversion(guidConverter);
+
+        b.Entity<ProjectTask>()
+         .Property(t => t.Id)
+         .HasConversion(guidConverter);
+
+        b.Entity<ProjectTask>()
+         .Property(t => t.ProjectId)
+         .HasConversion(guidConverter);
+
         b.Entity<User>()
          .HasIndex(u => u.Email)
          .IsUnique();

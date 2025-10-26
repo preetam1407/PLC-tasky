@@ -43,7 +43,7 @@ static bool IsPostgresConnection(string? connectionString)
 {
     if (string.IsNullOrWhiteSpace(connectionString)) return false;
     if (connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase)) return true;
-    if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)) return true;
+    if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)) return true;
     if (connectionString.Contains("Username=", StringComparison.OrdinalIgnoreCase)) return true;
     return false;
 }
@@ -367,4 +367,6 @@ app.MapGet("/healthz", async (AppDbContext db, IConfiguration configuration) =>
 
 
 app.Run();
+
+
 

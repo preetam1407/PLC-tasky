@@ -496,6 +496,15 @@ app.MapGet("/debug/users", async (AppDbContext db) =>
     return Results.Ok(data);
 });
 
+app.MapGet("/debug/verify", async (AppDbContext db, string email, string password) =>
+{
+    var normalized = email.Trim().ToLowerInvariant();
+    var user = await db.Users.SingleOrDefaultAsync(u => u.Email == normalized);
+    if (user is null) return Results.NotFound(new { email });
+    var ok = BCrypt.Net.BCrypt.Verify(password.Trim(), user.PasswordHash);
+    return Results.Ok(new { user.Email, ok });
+});
+
 app.Run();
 
 sealed record DbProviderInfo(string ProviderName);

@@ -5,8 +5,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using Microsoft.Data.Sqlite;
 using System.IO;
+using System.Text;
 using TaskyV2.Application.DTOs;
 using TaskyV2.Application.Validation;
 using TaskyV2.Infrastructure.Auth;
@@ -15,6 +16,28 @@ using TaskyV2.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
+
+static string NormalizeSqliteConnectionString(string raw)
+{
+    var builder = new SqliteConnectionStringBuilder(raw);
+    if (string.IsNullOrWhiteSpace(builder.DataSource))
+    {
+        builder.DataSource = "/opt/render/project/data/tasky_v2.db";
+    }
+
+    if (!Path.IsPathRooted(builder.DataSource))
+    {
+        builder.DataSource = Path.GetFullPath(builder.DataSource, AppContext.BaseDirectory);
+    }
+
+    var directory = Path.GetDirectoryName(builder.DataSource);
+    if (!string.IsNullOrEmpty(directory))
+    {
+        Directory.CreateDirectory(directory);
+    }
+
+    return builder.ToString();
+}
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -53,32 +76,8 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-var connectionString = config.GetConnectionString("Default");
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    connectionString = "Data Source=/opt/render/project/data/tasky_v2.db";
-}
-
-static void EnsureSqliteDirectory(string connectionString)
-{
-    const string marker = "Data Source=";
-    var index = connectionString.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-    if (index >= 0)
-    {
-        var rest = connectionString[(index + marker.Length)..];
-        var path = rest.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[0];
-        if (!string.IsNullOrEmpty(path))
-        {
-            var directory = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-        }
-    }
-}
-
-EnsureSqliteDirectory(connectionString);
+var connectionString = config.GetConnectionString("Default") ?? "Data Source=/opt/render/project/data/tasky_v2.db";
+connectionString = NormalizeSqliteConnectionString(connectionString);
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlite(connectionString));

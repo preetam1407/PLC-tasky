@@ -39,7 +39,7 @@ static string NormalizeSqliteConnectionString(string raw)
     return builder.ToString();
 }
 
-static bool IsPostgresConnection(string connectionString)
+static bool IsPostgresConnection(string? connectionString)
 {
     if (string.IsNullOrWhiteSpace(connectionString)) return false;
     if (connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase)) return true;
@@ -92,9 +92,8 @@ if (IsPostgresConnection(connectionString))
 }
 else
 {
-    connectionString ??= "Data Source=/opt/render/project/data/tasky_v2.db";
-    connectionString = NormalizeSqliteConnectionString(connectionString);
-    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite(connectionString));
+    var sqliteConnection = NormalizeSqliteConnectionString(connectionString ?? "Data Source=/opt/render/project/data/tasky_v2.db");
+    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite(sqliteConnection));
 }
 
 

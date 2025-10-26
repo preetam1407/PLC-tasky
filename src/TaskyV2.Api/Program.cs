@@ -60,19 +60,31 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 
- var allowedOrigins = builder.Configuration.GetValue<string>("AllowedOrigins")
-     ?.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-     ?? new[]
-     {
-         "http://localhost:5174",
-         "http://localhost:3000"
-     };
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+        policy
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin)) return false;
 
- builder.Services.AddCors(o => o.AddPolicy("Frontend", p =>
-     p.WithOrigins(allowedOrigins)
-      .AllowAnyHeader()
-      .AllowAnyMethod()));
+                if (origin.StartsWith("http://localhost:5174") ||
+                    origin.StartsWith("http://localhost:3000") ||
+                    origin.StartsWith("https://mini-project-manager-eta.vercel.app"))
+                {
+                    return true;
+                }
+
+                return origin.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase);
+            })
+            .AllowCredentials());
+});
+
 builder.Services.AddProblemDetails();
+
+
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<AuthService>();
@@ -112,12 +124,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
-
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
 
 app.Use(async (ctx, next) =>
 {
@@ -306,7 +312,18 @@ projects.MapPost("/{projectId:guid}/schedule",
 .WithTags("Projects");
 
 
-app.MapGet("/healthz", () => Results.Ok(new { status = "ok", timeUtc = DateTime.UtcNow }));
+app.MapGet("/healthz", async (AppDbContext db, IConfiguration configuration) =>
+{
+    var health = new
+    {
+        status = "ok",
+        timeUtc = DateTime.UtcNow,
+        database = await db.Database.CanConnectAsync(),
+        environment = app.Environment.EnvironmentName,
+        allowedOrigins = allowedOrigins
+    };
+    return Results.Ok(health);
+});
 
 
 app.Run();

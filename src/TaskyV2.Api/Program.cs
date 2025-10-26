@@ -498,11 +498,19 @@ app.MapGet("/debug/users", async (AppDbContext db) =>
 
 app.MapGet("/debug/verify", async (AppDbContext db, string email, string password) =>
 {
-    var normalized = email.Trim().ToLowerInvariant();
-    var user = await db.Users.SingleOrDefaultAsync(u => u.Email == normalized);
-    if (user is null) return Results.NotFound(new { email });
-    var ok = BCrypt.Net.BCrypt.Verify(password.Trim(), user.PasswordHash);
-    return Results.Ok(new { user.Email, ok });
+    try
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Email == normalized);
+        if (user is null) return Results.NotFound(new { email });
+        var ok = BCrypt.Net.BCrypt.Verify(password.Trim(), user.PasswordHash);
+        return Results.Ok(new { user.Email, ok });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[debug/verify] {ex}");
+        return Results.Text(ex.ToString(), "text/plain", statusCode: 500);
+    }
 });
 
 app.Run();

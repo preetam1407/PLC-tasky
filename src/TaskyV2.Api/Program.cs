@@ -52,10 +52,24 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-
-
+var connectionString = config.GetConnectionString("Default");
+if (!string.IsNullOrWhiteSpace(connectionString))
+{
+    const string marker = "Data Source=";
+    var index = connectionString.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+    if (index >= 0)
+    {
+        var path = connectionString.Substring(index + marker.Length).Trim();
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+    }
+}
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(config.GetConnectionString("Default")));
+    opt.UseSqlite(connectionString ?? "Data Source=/opt/render/project/data/tasky_v2.db"));
+
 
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();

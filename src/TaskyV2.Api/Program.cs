@@ -314,15 +314,15 @@ projects.MapPost("/{projectId:guid}/schedule",
 
 app.MapGet("/healthz", async (AppDbContext db, IConfiguration configuration) =>
 {
-    var health = new
+    var allowed = configuration.GetValue<string>("AllowedOrigins");
+    return Results.Ok(new
     {
         status = "ok",
         timeUtc = DateTime.UtcNow,
         database = await db.Database.CanConnectAsync(),
         environment = app.Environment.EnvironmentName,
-        allowedOrigins = allowedOrigins
-    };
-    return Results.Ok(health);
+        allowedOrigins = allowed ?? "*.vercel.app",
+    });
 });
 
 

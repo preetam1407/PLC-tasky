@@ -54,22 +54,34 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var connectionString = config.GetConnectionString("Default");
-if (!string.IsNullOrWhiteSpace(connectionString))
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    connectionString = "Data Source=/opt/render/project/data/tasky_v2.db";
+}
+
+static void EnsureSqliteDirectory(string connectionString)
 {
     const string marker = "Data Source=";
     var index = connectionString.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
     if (index >= 0)
     {
-        var path = connectionString.Substring(index + marker.Length).Trim();
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory))
+        var rest = connectionString[(index + marker.Length)..];
+        var path = rest.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[0];
+        if (!string.IsNullOrEmpty(path))
         {
-            Directory.CreateDirectory(directory);
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
         }
     }
 }
+
+EnsureSqliteDirectory(connectionString);
+
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(connectionString ?? "Data Source=/opt/render/project/data/tasky_v2.db"));
+    opt.UseSqlite(connectionString));
 
 
 builder.Services.AddFluentValidationAutoValidation();

@@ -10,29 +10,45 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectTask> ProjectTasks => Set<ProjectTask>();
 
+    private static readonly GuidToStringConverter GuidConverter = new();
+    private static readonly ValueConverter<DateTime, string> DateTimeConverter =
+        new ValueConverter<DateTime, string>(
+            v => v.ToString("O"),
+            v => DateTime.Parse(v, null, System.Globalization.DateTimeStyles.RoundtripKind));
+
     protected override void OnModelCreating(ModelBuilder b)
     {
-        var guidConverter = new GuidToStringConverter();
-
         b.Entity<User>()
          .Property(u => u.Id)
-         .HasConversion(guidConverter);
+         .HasConversion(GuidConverter);
+
+        b.Entity<User>()
+         .Property(u => u.CreatedAtUtc)
+         .HasConversion(DateTimeConverter);
 
         b.Entity<Project>()
          .Property(p => p.Id)
-         .HasConversion(guidConverter);
+         .HasConversion(GuidConverter);
 
         b.Entity<Project>()
          .Property(p => p.UserId)
-         .HasConversion(guidConverter);
+         .HasConversion(GuidConverter);
+
+        b.Entity<Project>()
+         .Property(p => p.CreatedAtUtc)
+         .HasConversion(DateTimeConverter);
 
         b.Entity<ProjectTask>()
          .Property(t => t.Id)
-         .HasConversion(guidConverter);
+         .HasConversion(GuidConverter);
 
         b.Entity<ProjectTask>()
          .Property(t => t.ProjectId)
-         .HasConversion(guidConverter);
+         .HasConversion(GuidConverter);
+
+        b.Entity<ProjectTask>()
+         .Property(t => t.CreatedAtUtc)
+         .HasConversion(DateTimeConverter);
 
         b.Entity<User>()
          .HasIndex(u => u.Email)

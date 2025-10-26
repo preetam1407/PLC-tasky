@@ -367,3 +367,4 @@ app.MapGet("/healthz", async (AppDbContext db, IConfiguration configuration) =>
 
 
 app.Run();
+

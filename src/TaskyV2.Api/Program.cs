@@ -4,6 +4,7 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Data.Sqlite;
 using System.IO;
@@ -175,13 +176,17 @@ if (usePostgres)
 {
     effectiveConnectionString = NormalizePostgresConnectionString(rawConnectionString!);
     AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(effectiveConnectionString));
+    builder.Services.AddDbContext<AppDbContext>(opt =>
+        opt.UseNpgsql(effectiveConnectionString)
+           .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
     providerLabel = "PostgreSQL";
 }
 else
 {
     effectiveConnectionString = NormalizeSqliteConnectionString(rawConnectionString ?? "Data Source=/opt/render/project/data/tasky_v2.db");
-    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite(effectiveConnectionString));
+    builder.Services.AddDbContext<AppDbContext>(opt =>
+        opt.UseSqlite(effectiveConnectionString)
+           .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
     providerLabel = "SQLite";
 }
 
@@ -486,5 +491,6 @@ app.MapGet("/healthz", async (AppDbContext db, IConfiguration configuration, DbP
 app.Run();
 
 sealed record DbProviderInfo(string ProviderName);
+
 
 

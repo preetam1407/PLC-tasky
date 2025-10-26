@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.Data.Sqlite;
 using System.IO;
 using System.Text;
+using Npgsql;
 using TaskyV2.Application.DTOs;
 using TaskyV2.Application.Validation;
 using TaskyV2.Infrastructure.Auth;
@@ -16,6 +17,95 @@ using TaskyV2.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
+
+static string? PickConnectionString(IConfiguration configuration) =>
+    configuration.GetConnectionString("Default")
+    ?? configuration["ConnectionStrings:Default"]
+    ?? configuration["DATABASE_URL"];
+
+static bool LooksLikePostgres(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value)) return false;
+    value = value.Trim();
+    return value.StartsWith("Host=", StringComparison.OrdinalIgnoreCase)
+        || value.StartsWith("Username=", StringComparison.OrdinalIgnoreCase)
+        || value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        || value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
+}
+
+static string NormalizePostgresConnectionString(string raw)
+{
+    if (string.IsNullOrWhiteSpace(raw))
+        throw new ArgumentException("Connection string cannot be empty.", nameof(raw));
+
+    raw = raw.Trim();
+
+    if (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+        raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Host))
+            throw new InvalidOperationException($"Invalid PostgreSQL URL '{raw}'.");
+
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.IsDefaultPort ? 5432 : uri.Port,
+            Database = uri.AbsolutePath.TrimStart('/')
+        };
+
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+        {
+            var parts = uri.UserInfo.Split(':', 2);
+            builder.Username = Uri.UnescapeDataString(parts[0]);
+            if (parts.Length > 1)
+            {
+                builder.Password = Uri.UnescapeDataString(parts[1]);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(uri.Query))
+        {
+            foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var tokens = pair.Split('=', 2);
+                if (tokens.Length == 2 && !string.IsNullOrEmpty(tokens[0]))
+                {
+                    builder[tokens[0]] = Uri.UnescapeDataString(tokens[1]);
+                }
+            }
+        }
+
+        if (!builder.ContainsKey("SslMode"))
+        {
+            builder.SslMode = SslMode.Require;
+        }
+
+        if (!builder.ContainsKey("Trust Server Certificate"))
+        {
+        }
+
+        return builder.ConnectionString;
+    }
+    else
+    {
+        var builder = new NpgsqlConnectionStringBuilder(raw);
+        if (builder.Port == 0)
+        {
+            builder.Port = 5432;
+        }
+
+        if (!builder.ContainsKey("SslMode"))
+        {
+            builder.SslMode = SslMode.Require;
+        }
+
+        if (!builder.ContainsKey("Trust Server Certificate"))
+        {
+        }
+
+        return builder.ConnectionString;
+    }
+}
 
 static string NormalizeSqliteConnectionString(string raw)
 {
@@ -37,15 +127,6 @@ static string NormalizeSqliteConnectionString(string raw)
     }
 
     return builder.ToString();
-}
-
-static bool IsPostgresConnection(string? connectionString)
-{
-    if (string.IsNullOrWhiteSpace(connectionString)) return false;
-    if (connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase)) return true;
-    if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)) return true;
-    if (connectionString.Contains("Username=", StringComparison.OrdinalIgnoreCase)) return true;
-    return false;
 }
 
 builder.Services.AddEndpointsApiExplorer();
@@ -85,16 +166,26 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-var connectionString = config.GetConnectionString("Default");
-if (IsPostgresConnection(connectionString))
+var rawConnectionString = PickConnectionString(config);
+var usePostgres = LooksLikePostgres(rawConnectionString);
+string effectiveConnectionString;
+string providerLabel;
+
+if (usePostgres)
 {
-    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(connectionString));
+    effectiveConnectionString = NormalizePostgresConnectionString(rawConnectionString!);
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(effectiveConnectionString));
+    providerLabel = "PostgreSQL";
 }
 else
 {
-    var sqliteConnection = NormalizeSqliteConnectionString(connectionString ?? "Data Source=/opt/render/project/data/tasky_v2.db");
-    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite(sqliteConnection));
+    effectiveConnectionString = NormalizeSqliteConnectionString(rawConnectionString ?? "Data Source=/opt/render/project/data/tasky_v2.db");
+    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite(effectiveConnectionString));
+    providerLabel = "SQLite";
 }
+
+builder.Services.AddSingleton(new DbProviderInfo(providerLabel));
 
 
 builder.Services.AddFluentValidationAutoValidation();
@@ -164,6 +255,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.Migrate();
+        logger.LogInformation("Database provider {ProviderName} ready.", db.Database.ProviderName);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Database migration failed.");
+    }
+}
 
 app.Use(async (ctx, next) =>
 {
@@ -352,14 +458,25 @@ projects.MapPost("/{projectId:guid}/schedule",
 .WithTags("Projects");
 
 
-app.MapGet("/healthz", async (AppDbContext db, IConfiguration configuration) =>
+app.MapGet("/healthz", async (AppDbContext db, IConfiguration configuration, DbProviderInfo provider) =>
 {
+    bool canConnect;
+    try
+    {
+        canConnect = await db.Database.CanConnectAsync();
+    }
+    catch
+    {
+        canConnect = false;
+    }
+
     var allowed = configuration.GetValue<string>("AllowedOrigins");
     return Results.Ok(new
     {
         status = "ok",
         timeUtc = DateTime.UtcNow,
-        database = await db.Database.CanConnectAsync(),
+        provider = provider.ProviderName,
+        database = canConnect,
         environment = app.Environment.EnvironmentName,
         allowedOrigins = allowed ?? "*.vercel.app",
     });
@@ -368,5 +485,6 @@ app.MapGet("/healthz", async (AppDbContext db, IConfiguration configuration) =>
 
 app.Run();
 
+sealed record DbProviderInfo(string ProviderName);
 
 

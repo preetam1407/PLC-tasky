@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.IO;
 using TaskyV2.Application.DTOs;
 using TaskyV2.Application.Validation;
 using TaskyV2.Infrastructure.Auth;

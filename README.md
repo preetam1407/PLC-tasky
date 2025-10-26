@@ -1,17 +1,26 @@
-# Tasky Assignments
+Assignments
+PLC October 2025 home assignments. The repository contains two independent solutions that share .NET backends and TypeScript/React frontends.
 
-Full-stack implementations for the PLC October 2025 home assignments. The repository contains two independent solutions that share .NET backends and TypeScript/React frontends.
-
+## Deployment URL:
+Assignment 1 
+ ```bash
+[https://basic-task-manager-flame.vercel.app/](https://basic-task-manager-flame.vercel.app/)
+   ```
+Assignment 2 
+ ```bash
+[https://basic-task-manager-flame.vercel.app/](https://mini-project-manager-eta.vercel.app/)
+   ```
+   
 ## Project Layout
 
 ```
 tasky/
 ├── src/
-│   ├── Tasky.Api                 # Assignment 1 – Minimal API (in-memory)
+│   ├── Tasky.Api                 # Assignment 1
 │   ├── Tasky.Application
 │   ├── Tasky.Domain
 │   ├── Tasky.Infrastructure
-│   ├── TaskyV2.Api               # Assignment 2 – Auth + EF Core + Scheduler
+│   ├── TaskyV2.Api               # Assignment 2 
 │   ├── TaskyV2.Application
 │   ├── TaskyV2.Domain
 │   └── TaskyV2.Infrastructure
@@ -97,9 +106,7 @@ tasky/
    - Smart Scheduler UI (working days, capacity, start/end dates) with rich results
    - Responsive layout, accessible focus states, consistent error handling
 
-Environment variables are optional; both Vite apps default to proxy targets defined in `vite.config.ts`. To point to a deployed backend, set `VITE_API_BASE_URL` in `.env`.
-
-## Testing Checklist
+## Testing 
 
 - [ ] `dotnet build` (requires local .NET SDK)
 - [ ] `npm run build` inside each frontend for production bundles

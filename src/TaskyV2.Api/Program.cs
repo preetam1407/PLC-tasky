@@ -39,6 +39,15 @@ static string NormalizeSqliteConnectionString(string raw)
     return builder.ToString();
 }
 
+static bool IsPostgresConnection(string connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString)) return false;
+    if (connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase)) return true;
+    if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)) return true;
+    if (connectionString.Contains("Username=", StringComparison.OrdinalIgnoreCase)) return true;
+    return false;
+}
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -76,11 +85,17 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-var connectionString = config.GetConnectionString("Default") ?? "Data Source=/opt/render/project/data/tasky_v2.db";
-connectionString = NormalizeSqliteConnectionString(connectionString);
-
-builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(connectionString));
+var connectionString = config.GetConnectionString("Default");
+if (IsPostgresConnection(connectionString))
+{
+    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(connectionString));
+}
+else
+{
+    connectionString ??= "Data Source=/opt/render/project/data/tasky_v2.db";
+    connectionString = NormalizeSqliteConnectionString(connectionString);
+    builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite(connectionString));
+}
 
 
 builder.Services.AddFluentValidationAutoValidation();
